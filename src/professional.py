@@ -1,6 +1,6 @@
 from enum import IntEnum
 from typing import List, Optional
-from fastapi import FastAPI
+from fastapi import FastAPI,HTTPException # like previously in code we were sometime returning strings that is not accurate so we will now return the http exception
 from pydantic import BaseModel, Field  
 
 
@@ -21,7 +21,7 @@ class TodoBase(BaseModel): # inpydantic basemodel is used to define any schema
 
 class TodoCreate(TodoBase):  # we need todobase to create todo
      pass
-
+   
 
 class Todo(TodoBase):  #this is  a response like it will like give todo base stuff with id  
      todo_id : int = Field(..., description='unique identification id')
@@ -30,9 +30,7 @@ class Todo(TodoBase):  #this is  a response like it will like give todo base stu
 class TodoUpdate(BaseModel): #we are using optional as like we might or might not wanna update it and for updating it necessary to make default value none    
      todo_name : Optional[str] = Field(None, min_length=3, max_length=512, description='descriptionof the todo')  #not for openai stuff or any llm, ... represent reqd field
      todo_description : Optional[str] = Field(None,  description='todosescription')
-     priority : Optional[Priority] = Field(None, description='priority of the todo')
-
-     
+     priority : Optional[Priority] = Field(None, description='priority of the todo')     
 
 
 
@@ -59,7 +57,8 @@ all_todos = [
 def get_todo(todo_id : int):           
       for todo in all_todos:
            if todo.todo_id == todo_id:
-                return {'result':todo}
+                return todo
+      raise HTTPException(status_code=404, detail='todo not found')
          
 
 
@@ -92,18 +91,22 @@ def create_todo(todo: TodoCreate): # so now our hinting is directly to class to 
 def update_todo(todo_id: int, updated_todo:TodoUpdate):
      for todo in all_todos:
           if todo.todo_id == todo_id:
-               todo.todo_name = updated_todo.todo_name
-               todo.todo_description = updated_todo.todo_description
-               todo.priority = updated_todo.priority
-               return todo
-     return "not found"
+              if updated_todo.todo_name is not None:                
+                todo.todo_name = updated_todo.todo_name
+              if updated_todo.todo_description is not None:                    
+                todo.todo_description = updated_todo.todo_description    #focus on name while programming
+              if updated_todo.priority is not None:                   
+                todo.priority = updated_todo.priority
+                return todo
+     raise HTTPException(status_code=404,detail='to do not founc')
 
 
-@api.delete('/todos/{todo_id}')
+@api.delete('/todos/{todo_id}', response_model=Todo)
 def delete_todo(todo_id : int):
      for index, todo in enumerate(all_todos):
-          if todo['todo_id'] == todo_id:
+          if todo.todo_id == todo_id:
                deleted_todo = all_todos.pop(index)
                return deleted_todo
-     return "error not found"
+    #  return "error not found"
+     raise HTTPException(status_code=404, detail='todo not found')
                
